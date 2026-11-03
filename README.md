@@ -83,34 +83,34 @@ Deployment პროცესი მოიცავს შემდეგ ნა
 
 Build და Test შემოწმებები ავტომატურად სრულდება Push-ისა და Pull Request-ის დროს. არსებული Workflow-ის კონფიგურაციით, Deploy ეტაპიც სრულდება ორივე ტიპის მოვლენაზე, თუ წინა ეტაპები წარმატებით დასრულდა.
 
-## Screenshots & Workflow
+## ეკრანის სურათები და სამუშაო პროცესის დიაგრამა
 
 ### 1. GitHub Actions Pipeline
 
-The GitHub Actions pipeline completed all three stages successfully: Build, Test, and Deploy.
+GitHub Actions-ის პაიპლაინმა წარმატებით გაიარა სამივე ეტაპი: Build, Test და Deploy.
 
 ![GitHub Actions Pipeline](docs/screenshots/pipeline.png)
 
-### 2. Unit Test Results
+### 2. Unit Test შედეგები
 
-All unit tests completed successfully, verifying the application's functionality.
+ყველა Unit Test წარმატებით შესრულდა, რაც აპლიკაციის ფუნქციონალის სისწორეს ამოწმებს.
 
 ![Unit Test Results](docs/screenshots/test_results.png)
 
-### 3. Running Application
+### 3. მომუშავე აპლიკაცია
 
-The UnitConverter application running locally in the browser.
+UnitConverter აპლიკაციის მუშაობა ლოკალურ ბრაუზერში.
 
 ![Running Application](docs/screenshots/web_on_local.png)
 
 ### 4. Health Check
 
-The health endpoint confirms that the application is running and reports a `Healthy` status.
+Health Check-ის Endpoint ადასტურებს, რომ აპლიკაცია მუშაობს და აბრუნებს სტატუსს `Healthy`.
 
 ![Health Check](docs/screenshots/health.png)
 
 ### 5. CI/CD Workflow Diagram
 
-A visual representation of the project's CI/CD pipeline, showing the main stages from code changes to deployment.
+პროექტის CI/CD პაიპლაინის ვიზუალური წარმოდგენა, რომელიც აჩვენებს ძირითად ეტაპებს კოდის ცვლილებიდან მის განთავსებამდე.
 
 ![Workflow Diagram](docs/screenshots/workflow_diagram.png)
