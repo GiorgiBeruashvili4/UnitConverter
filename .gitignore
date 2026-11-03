@@ -1,0 +1,21 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# Build output
+[Bb]in/
+[Oo]bj/
+
+# Test results
+TestResults/
+
+# Publish output
+publish/
+
+# Logs
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
