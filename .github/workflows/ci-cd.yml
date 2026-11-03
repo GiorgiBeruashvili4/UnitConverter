@@ -1,0 +1,165 @@
+name: UnitConverter CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore packages
+        run: dotnet restore UnitConverter.sln
+
+      - name: Build project
+        run: dotnet build UnitConverter.sln --configuration Release --no-restore
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Run tests
+        run: dotnet test UnitConverter.sln --configuration Release
+
+  deploy:
+    name: Deploy
+    runs-on: self-hosted
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v7
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Blue-Green Deployment
+        shell: powershell
+        run: |
+          $productionPath = "C:\UnitConverter\production"
+          $statePath = Join-Path $productionPath "state"
+          $activeFile = Join-Path $statePath "active-slot.txt"
+
+          # Read the currently active environment
+          $activeSlot = (Get-Content $activeFile -Raw).Trim().ToLower()
+
+          # Select the inactive environment
+          if ($activeSlot -eq "blue") {
+              $targetSlot = "green"
+              $targetPort = 5082
+          }
+          elseif ($activeSlot -eq "green") {
+              $targetSlot = "blue"
+              $targetPort = 5081
+          }
+          else {
+              throw "Invalid active slot: $activeSlot"
+          }
+
+          Write-Host "Active slot: $activeSlot"
+          Write-Host "Deploying to: $targetSlot"
+
+          $targetPath = Join-Path $productionPath $targetSlot
+
+          # Stop an older application using the target port
+          $connections = Get-NetTCPConnection -LocalPort $targetPort -State Listen -ErrorAction SilentlyContinue
+
+          if ($connections) {
+              $connections.OwningProcess | Sort-Object -Unique | ForEach-Object {
+                  Stop-Process -Id $_ -Force
+              }
+          }
+
+          # Prepare the target directory
+          New-Item -ItemType Directory -Force -Path $targetPath | Out-Null
+
+          Get-ChildItem -LiteralPath $targetPath -Force |
+              Remove-Item -Recurse -Force
+
+          # Publish the new version
+          dotnet publish src/UnitConverter.Api/UnitConverter.Api.csproj --configuration Release --output $targetPath
+
+          if ($LASTEXITCODE -ne 0) {
+              throw "Publish failed."
+          }
+
+          # Start the new application
+          $stdout = Join-Path $statePath "$targetSlot-output.log"
+          $stderr = Join-Path $statePath "$targetSlot-error.log"
+
+          Remove-Item $stdout, $stderr -Force -ErrorAction SilentlyContinue
+
+          $process = Start-Process `
+              -FilePath "dotnet" `
+              -ArgumentList "UnitConverter.Api.dll --urls http://localhost:$targetPort" `
+              -WorkingDirectory $targetPath `
+              -RedirectStandardOutput $stdout `
+              -RedirectStandardError $stderr `
+              -PassThru
+
+          # Check application health
+          $healthUrl = "http://localhost:$targetPort/health"
+          $healthy = $false
+
+          for ($attempt = 1; $attempt -le 20; $attempt++) {
+              Start-Sleep -Seconds 2
+
+              try {
+                  $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 5
+
+                  if ($response.StatusCode -eq 200 -and $response.Content -match '"status"\s*:\s*"Healthy"') {
+                      $healthy = $true
+                      break
+                  }
+              }
+              catch {
+                  Write-Host "Waiting for application... Attempt $attempt"
+              }
+          }
+
+          if (-not $healthy) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+
+              if (Test-Path $stderr) {
+                  Get-Content $stderr
+              }
+
+              throw "Health check failed. Previous active slot remains: $activeSlot"
+          }
+
+          # Activate the new environment
+          Set-Content -Path $activeFile -Value $targetSlot
+
+          Write-Host "Deployment successful!"
+          Write-Host "Active slot: $targetSlot"
+          Write-Host "Application URL: $healthUrl"
