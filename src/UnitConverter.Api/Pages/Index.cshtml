@@ -1,0 +1,113 @@
+@page
+@model UnitConverter.Api.Pages.IndexModel
+@{
+    ViewData["Title"] = "UnitConverter";
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>UnitConverter — Convert with clarity</title>
+    <link rel="stylesheet" href="~/css/site.css" />
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <a class="brand" href="/"><span class="brand-mark">↔</span> UnitConverter</a>
+            <span class="api-status"><span class="pulse"></span> Ready to convert</span>
+        </header>
+
+        <section class="hero">
+            <p class="eyebrow">THE EVERYDAY CONVERSION TOOL</p>
+            <h1>Every unit.<br /><span>One simple place.</span></h1>
+            <p class="intro">Convert measurements in seconds. Clear results, useful categories, and no unnecessary clutter.</p>
+        </section>
+
+        <section class="converter-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">CONVERTER</p>
+                    <h2>Make a conversion</h2>
+                </div>
+                <span class="sparkle">✳</span>
+            </div>
+
+            <form method="post" class="converter-form">
+                <label for="Category">Category</label>
+                <select asp-for="Category" id="Category">
+                    @foreach (var category in Model.Categories)
+                    {
+                        <option value="@category" selected="@(category == Model.Category)">@category</option>
+                    }
+                </select>
+
+                <div class="unit-grid">
+                    <div class="field">
+                        <label for="InputValue">From</label>
+                        <input asp-for="InputValue" id="InputValue" type="number" step="any" required />
+                        <select asp-for="FromUnit" id="FromUnit">
+                            @foreach (var unit in Model.Units)
+                            {
+                                <option value="@unit" selected="@(unit == Model.FromUnit)">@unit</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="swap-mark">⇄</div>
+                    <div class="field">
+                        <label for="ToUnit">To</label>
+                        <div class="result-placeholder">Result appears below</div>
+                        <select asp-for="ToUnit" id="ToUnit">
+                            @foreach (var unit in Model.Units)
+                            {
+                                <option value="@unit" selected="@(unit == Model.ToUnit)">@unit</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <button class="convert-button" type="submit">Convert units <span>→</span></button>
+            </form>
+
+            @if (Model.Result is not null)
+            {
+                <section class="result-card" aria-live="polite">
+                    <p class="eyebrow">CONVERSION RESULT</p>
+                    <div class="result-equation">
+                        <span>@Model.Result.InputValue.ToString("G") @Model.Result.FromUnit</span>
+                        <span class="equals">=</span>
+                    </div>
+                    <div class="result-value">@Model.Result.Result.ToString("G10")</div>
+                    <div class="result-unit">@Model.Result.ToUnit</div>
+                </section>
+            }
+            @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+            {
+                <p class="error-message">@Model.ErrorMessage</p>
+            }
+            <footer class="panel-footer">
+                <span>Length · Weight · Temperature · Time · Data</span>
+                <a href="/api/categories">Explore API ↗</a>
+            </footer>
+        </section>
+        <section class="quick-info">
+            <div><span class="info-icon">⌁</span><strong>Accurate formulas</strong><p>Standard conversion factors and temperature formulas.</p></div>
+            <div><span class="info-icon">◈</span><strong>Five categories</strong><p>Common units for everyday calculations.</p></div>
+            <div><span class="info-icon">↗</span><strong>Instant results</strong><p>Convert directly from this simple interface.</p></div>
+        </section>
+        <footer class="site-footer">UNITCONVERTER <span>•</span> BUILT WITH ASP.NET CORE 8</footer>
+    </main>
+    <script>
+        const categorySelect = document.getElementById('Category');
+        categorySelect.addEventListener('change', async () => {
+            const response = await fetch(`/api/units/${encodeURIComponent(categorySelect.value)}`);
+            if (!response.ok) return;
+            const units = await response.json();
+            for (const id of ['FromUnit', 'ToUnit']) {
+                const select = document.getElementById(id);
+                select.replaceChildren(...units.map(unit => new Option(unit, unit)));
+            }
+        });
+    </script>
+</body>
+</html>
